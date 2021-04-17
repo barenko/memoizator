@@ -6,7 +6,11 @@
     "scripts": {
         "test": "jest --coverage"
     },
-    "author": "Barenko <barenko@gmail.com>",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/barenko/memoizator.git"
+    },
+    "author": "barenko <barenko@gmail.com>",
     "license": "ISC",
     "keywords": [
         "memoize",

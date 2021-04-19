@@ -4,7 +4,7 @@ const logEntryD = require('debug')('memoizator:entry')
 const logEntryErrorD = require('debug')('memoizator:entry:error')
 
 
-function memoizator(promiseFn, { ttl = 60000, maxAge = 36000000, refreshRate = 10000, maxRecords = 10000, logFn } = {}) {
+function memoizator(promiseFn, { name, ttl = 60000, maxAge = 36000000, refreshRate = 10000, maxRecords = 10000, logFn } = {}) {
     const emitter = new EventEmitter()
     const logEntryError = logFn || logEntryErrorD
     const logEntry = logFn || logEntryD
@@ -20,12 +20,12 @@ function memoizator(promiseFn, { ttl = 60000, maxAge = 36000000, refreshRate = 1
                 let k = kv[0]
                 if (!v.dt || v.dt < t - ttl) {
                     v.expired = true;
-                    logEntry(`entry.expired ${k}`)
+                    logEntry(`entry.expired [${name}] ${k}`)
                     emitter.emit('entry.expired', k)
                 }
                 if (v.expired && v.dt < t - maxAge) {
                     delete cache[k]
-                    logEntry(`entry.removed ${k}`)
+                    logEntry(`entry.removed [${name}] ${k}`)
                     emitter.emit('entry.removed', k)
                 }
             })
@@ -34,17 +34,17 @@ function memoizator(promiseFn, { ttl = 60000, maxAge = 36000000, refreshRate = 1
 
     function setCache(key, value) {
         cache[key] = { dt: new Date().getTime(), value }
-        logEntry(`entry.added ${key}`)
+        logEntry(`entry.added [${name}] ${key}`)
         emitter.emit('entry.added', key)
 
         process.nextTick(() => {
             let mustRemoveQtd = Object.keys(cache).length - maxRecords
             if (mustRemoveQtd > 0) {
-                logCache(`cache.maxRecordsReached`)
+                logCache(`cache.maxRecordsReached [${name}]`)
                 emitter.emit('cache.maxRecordsReached')
                 let keys = Object.entries(cache).sort((c1, c2) => c1[1].dt - c2[1].dt).slice(0, mustRemoveQtd).map(v => v[0])
                 keys.forEach(k => {
-                    logEntry(`entry.removed ${k}`)
+                    logEntry(`entry.removed [${name}] ${k}`)
                     emitter.emit('entry.removed', k)
                     delete cache[k]
                 })
@@ -61,15 +61,15 @@ function memoizator(promiseFn, { ttl = 60000, maxAge = 36000000, refreshRate = 1
                 promiseFn.apply(null, arguments).then(value => {
                     setCache(fArgs, value)
                 }).catch(err => {
-                    logEntryError(`entry.error Key=${fArgs}, Error=${err.message}`)
+                    logEntryError(`entry.error [${name}] Key=${fArgs}, Error=${err.message}`)
                     emitter.emit('entry.error', err, fArgs)
                 })
             }
-            logEntry(`entry.found ${fArgs}`)
+            logEntry(`entry.found [${name}] ${fArgs}`)
             emitter.emit('entry.found', fArgs)
             return hit.value
         } else {
-            logEntry(`entry.notFound ${fArgs}`)
+            logEntry(`entry.notFound [${name}] ${fArgs}`)
             emitter.emit('entry.notFound', fArgs)
             try {
                 const value = await promiseFn.apply(null, arguments)
@@ -83,7 +83,7 @@ function memoizator(promiseFn, { ttl = 60000, maxAge = 36000000, refreshRate = 1
 
     fn.clear = () => {
         cache = {}
-        logCache(`cache.cleared`)
+        logCache(`cache.cleared [${name}]`)
         emitter.emit('cache.cleared')
     }
 
